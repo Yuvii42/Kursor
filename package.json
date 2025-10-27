@@ -1,0 +1,21 @@
+{
+  "name": "kursor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google/genai": "^1.26.0",
+    "child_process": "^1.0.2",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "os": "^0.1.2",
+    "readline-sync": "^1.4.10",
+    "util": "^0.12.5"
+  }
+}

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kursor — Cursor-like Frontend</title>
+  <!-- Tailwind Play CDN (fast for prototypes). For production, compile Tailwind locally. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small extras to make it feel polished */
+    .glass { background: rgba(255,255,255,0.03); }
+    .accent-gradient { background: linear-gradient(90deg,#7c3aed,#06b6d4); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#071024] text-slate-100 antialiased">
+  <div class="max-w-full h-screen p-6 grid grid-cols-[260px_1fr_380px] gap-6">
+
+    <!-- LEFT: Sidebar (file tree / workspace) -->
+    <aside class="rounded-2xl p-4 glass border border-white/5 shadow-lg flex flex-col">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-md accent-gradient"></div>
+        <div>
+          <div class="font-semibold">Kursor</div>
+          <div class="text-xs text-slate-400">Cursor-like frontend</div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-auto no-scrollbar">
+        <div class="text-slate-400 text-sm mb-2">Workspace</div>
+        <div id="fileTree" class="space-y-1">
+          <!-- files will be populated by JS -->
+        </div>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="newFileBtn" class="w-full py-2 rounded-lg bg-white/5 text-sm">New file</button>
+        <button id="openFolderBtn" class="w-full py-2 rounded-lg bg-white/5 text-sm">Open</button>
+      </div>
+    </aside>
+
+    <!-- CENTER: Editor + topbar + command-palette -->
+    <main class="flex flex-col gap-4">
+      <header class="flex items-center justify-between p-3 rounded-xl glass border border-white/5 shadow-sm">
+        <div class="text-sm text-slate-300"><span id="cwd">/workspace</span> / <span id="openFilename" class="font-medium">App.html</span></div>
+        <div class="flex items-center gap-2">
+          <button id="runBtn" class="px-3 py-1 rounded-md bg-white/5 text-sm">Run</button>
+          <button id="formatBtn" class="px-3 py-1 rounded-md bg-white/5 text-sm">Format</button>
+          <button id="saveBtn" class="px-3 py-1 rounded-md accent-gradient text-black font-semibold">Save</button>
+        </div>
+      </header>
+
+      <section class="flex-1 grid grid-cols-[48px_1fr] gap-4">
+        <!-- gutter -->
+        <pre id="gutter" class="mono text-slate-500 text-sm select-none text-right pr-2"></pre>
+
+        <!-- editor area -->
+        <div class="rounded-xl bg-[#071326] border border-white/5 shadow-lg p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-sm text-slate-400">Editor</div>
+            <div class="text-xs text-slate-500">Press <kbd class="bg-white/5 px-2 py-0.5 rounded">Ctrl/Cmd</kbd> + <kbd class="bg-white/5 px-2 py-0.5 rounded">K</kbd> for commands</div>
+          </div>
+
+          <textarea id="editor" spellcheck="false" class="flex-1 resize-none w-full mono text-sm bg-transparent outline-none text-slate-100" rows="18">&lt;!-- Example starter --&gt;
+&lt;!doctype html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8"/&gt;
+    &lt;meta name="viewport" content="width=device-width,initial-scale=1"/&gt;
+    &lt;title&gt;Calculator&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="app"&gt;Calculator UI here&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</textarea>
+
+          <div class="mt-3 flex gap-2 justify-end">
+            <button id="previewBtn" class="px-3 py-1 rounded-md bg-white/5 text-sm">Preview</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Command palette (overlay) -->
+      <div id="palette" class="fixed left-1/2 -translate-x-1/2 top-24 w-[640px] max-w-[92%] bg-[#061226] rounded-xl border border-white/5 shadow-2xl p-2 hidden z-50">
+        <input id="paletteInput" class="w-full bg-transparent outline-none px-3 py-3 text-slate-100 mono" placeholder="Type a command (format, save, open README.md, create file...)" />
+        <div id="paletteList" class="max-h-60 overflow-auto"></div>
+      </div>
+    </main>
+
+    <!-- RIGHT: Assistant / Chat panel -->
+    <aside class="rounded-2xl p-4 glass border border-white/5 shadow-lg flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-medium">Assistant</div>
+          <div class="text-xs text-slate-400">Describe what you want to build — the backend will run commands</div>
+        </div>
+        <div class="text-xs text-slate-500">v0.1</div>
+      </div>
+
+      <div id="chat" class="flex-1 overflow-auto space-y-3 pb-3"></div>
+
+      <form id="compose" class="mt-3 flex gap-2 items-center">
+        <input id="userInput" placeholder="Tell the assistant — e.g. build a calculator app" class="flex-1 rounded-lg bg-transparent border border-white/5 px-3 py-2 outline-none" />
+        <button class="px-4 py-2 rounded-lg accent-gradient text-black font-medium" type="submit">Send</button>
+      </form>
+    </aside>
+
+  </div>
+
+  <script>
+    // ---------- Configuration ----------
+    // Set this to your backend endpoint that will run the agent loop you pasted in Node.
+    // Example: const API = 'http://localhost:3000/api/agent'
+    const API = '/api/agent'; // change if needed
+
+    // ---------- Small UI helpers ----------
+    const fileTreeEl = document.getElementById('fileTree');
+    const editorEl = document.getElementById('editor');
+    const gutterEl = document.getElementById('gutter');
+    const chatEl = document.getElementById('chat');
+    const userInputEl = document.getElementById('userInput');
+    const palette = document.getElementById('palette');
+    const paletteInput = document.getElementById('paletteInput');
+    const paletteList = document.getElementById('paletteList');
+
+    // Starter files (client-side only; your backend can send its own file list)
+    const files = {
+      'App.html': editorEl.value,
+      'index.css': '/* Tailwind heavy — include utilities or compile in production */',
+      'script.js': '// interactivity here',
+      'README.md': '# Kursor frontend'
+    };
+
+    let openFile = 'App.html';
+
+    function renderFileTree(){
+      fileTreeEl.innerHTML = '';
+      for(const name of Object.keys(files)){
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left py-1 px-2 rounded-md text-sm ' + (name===openFile? 'bg-white/5':'hover:bg-white/2/5');
+        btn.textContent = name;
+        btn.onclick = ()=>{ openFile = name; openFileInEditor(name); };
+        fileTreeEl.appendChild(btn);
+      }
+    }
+
+    function openFileInEditor(name){
+      openFile = name;
+      document.getElementById('openFilename').textContent = name;
+      editorEl.value = files[name] || '';
+      updateGutter();
+    }
+
+    function updateGutter(){
+      const lines = editorEl.value.split('\n').length;
+      gutterEl.textContent = Array.from({length:lines}, (_,i)=>i+1).join('\n');
+    }
+
+    // Init
+    renderFileTree();
+    openFileInEditor(openFile);
+    editorEl.addEventListener('input', ()=>{ files[openFile] = editorEl.value; updateGutter(); });
+    updateGutter();
+
+    // ----- Command palette -----
+    const commands = [
+      {id:'format', label:'Format current file', run: ()=>formatFile()},
+      {id:'save', label:'Save current file (send to backend)', run: ()=>saveFile()},
+      {id:'new', label:'Create new file', run: ()=>createNewFilePrompt()},
+      {id:'open-readme', label:'Open README.md', run: ()=>openFileInEditor('README.md')},
+    ];
+
+    function togglePalette(state){ palette.classList.toggle('hidden', !state); if(state){ paletteInput.focus(); filterPalette(''); } }
+    document.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); togglePalette(true); } if(e.key==='Escape'){ togglePalette(false); } });
+
+    function filterPalette(q=''){ paletteList.innerHTML=''; const ql = q.toLowerCase(); for(const c of commands){ if(c.label.toLowerCase().includes(ql)){ const it = document.createElement('div'); it.className='px-3 py-2 hover:bg-white/5 cursor-pointer mono text-sm'; it.textContent = c.label; it.onclick = ()=>{ c.run(); togglePalette(false); }; paletteList.appendChild(it); } } }
+    paletteInput.addEventListener('input',(e)=>filterPalette(e.target.value));
+
+    // ----- basic editor features -----
+    function formatFile(){ // trivial formatting: trim trailing spaces
+      editorEl.value = editorEl.value.split('\n').map(l=>l.replace(/\s+$/,'')).join('\n'); files[openFile]=editorEl.value; addSystemMessage('Formatted file.'); updateGutter(); }
+
+    async function saveFile(){
+      addUserMessage(`Saving ${openFile}...`);
+      // send to server: {filename, content}
+      try{
+        const res = await fetch(API + '/save', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ filename: openFile, content: files[openFile] })
+        });
+        const j = await res.json();
+        addSystemMessage(j.message || 'Saved (server response)');
+      }catch(err){ addSystemMessage('Save failed: '+err.message); }
+    }
+
+    function createNewFilePrompt(){
+      const name = prompt('New file name (e.g. newFile.js)');
+      if(!name) return;
+      files[name] = '';
+      renderFileTree();
+      openFileInEditor(name);
+      addSystemMessage(`Created ${name}`);
+    }
+
+    // ----- Chat / assistant integration -----
+    function addUserMessage(text){ const d = document.createElement('div'); d.className='text-sm text-right'; d.innerHTML = `<div class=\"inline-block bg-white/5 px-3 py-2 rounded-lg\">${escapeHtml(text)}</div>`; chatEl.appendChild(d); chatEl.scrollTop = chatEl.scrollHeight; }
+    function addSystemMessage(text){ const d = document.createElement('div'); d.className='text-sm text-left text-slate-300'; d.innerHTML = `<div class=\"inline-block bg-white/3 px-3 py-2 rounded-lg\">${escapeHtml(text)}</div>`; chatEl.appendChild(d); chatEl.scrollTop = chatEl.scrollHeight; }
+
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    document.getElementById('compose').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const text = userInputEl.value.trim();
+      if(!text) return;
+      addUserMessage(text);
+      userInputEl.value='';
+
+      // send to backend agent — the backend should accept { prompt }
+      addSystemMessage('Sending to agent...');
+      try{
+        const r = await fetch(API + '/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+        if(!r.ok) throw new Error('Server error ' + r.status);
+        const data = await r.json();
+        // Expect the backend to return structured response, possibly with tool instructions and logs.
+        if(data.messages){ for(const m of data.messages){ addSystemMessage(m); } }
+        if(data.commandOutput){ addSystemMessage('Tool output:\n' + data.commandOutput); }
+      }catch(err){ addSystemMessage('Agent error: ' + err.message); }
+    });
+
+    // quick preview: open an iframe with the current HTML content (if filename looks like html)
+    document.getElementById('previewBtn').addEventListener('click', ()=>{
+      const name = openFile.toLowerCase();
+      if(!name.endsWith('.html') && !name.endsWith('.htm')){ addSystemMessage('Preview only supported for HTML files.'); return; }
+      const w = window.open('', '_blank');
+      w.document.open();
+      w.document.write(files[openFile]);
+      w.document.close();
+    });
+
+    // save keyboard shortcut
+    document.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); saveFile(); } });
+
+    // quick run/format actions
+    document.getElementById('formatBtn').addEventListener('click', formatFile);
+    document.getElementById('saveBtn').addEventListener('click', saveFile);
+    document.getElementById('runBtn').addEventListener('click', ()=>{ addSystemMessage('Run clicked — use Preview to open HTML or send files to backend to build.'); });
+
+    // small responsive tweak
+    window.addEventListener('resize', () => {/* future */});
+
+    // ---------- Suggested client improvements (displayed in console) ----------
+    console.info('Frontend ready. Configure API constant at top to point to your backend agent.');
+  </script>
+  <script src="index.js"></script>
+
+    
+</body>
+</html>

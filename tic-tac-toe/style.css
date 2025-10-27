@@ -1,0 +1,89 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #282c34;
+    color: #f0f0f0;
+    margin: 0;
+}
+
+.container {
+    background-color: #3a3f47;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+    color: #61dafb;
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 5px;
+    width: 315px; /* 3*100px + 2*5px */
+    height: 315px; /* 3*100px + 2*5px */
+    margin: 20px auto;
+    border: 2px solid #61dafb;
+    border-radius: 5px;
+}
+
+.cell {
+    width: 100px;
+    height: 100px;
+    background-color: #4a4f58;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3em;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.cell:hover {
+    background-color: #5a606a;
+}
+
+.cell.x {
+    color: #e57373; /* Reddish for X */
+}
+
+.cell.o {
+    color: #81c784; /* Greenish for O */
+}
+
+.status {
+    margin-top: 20px;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #61dafb;
+}
+
+#reset-button {
+    margin-top: 25px;
+    padding: 12px 25px;
+    font-size: 1.1em;
+    background-color: #61dafb;
+    color: #282c34;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+}
+
+#reset-button:hover {
+    background-color: #4dc1e8;
+    transform: scale(1.02);
+}
+
+#reset-button:active {
+    transform: scale(0.98);
+}
