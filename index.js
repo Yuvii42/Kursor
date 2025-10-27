@@ -1,5 +1,6 @@
 import { GoogleGenAI} from "@google/genai";
 import readlineSync from 'readline-sync';
+import 'dotenv/config';
 
 import {exec} from "child_process";
 import { promisify } from "util";
@@ -12,7 +13,9 @@ const asyncExecute = promisify(exec);
 
 const History = [] 
 
-const ai = new GoogleGenAI({apiKey: "AIzaSyAL2RcVgkrGVd88_z_SW7dTuhmmQLWvqA8"})
+const apiKey = process.env.MY_API_KEY;
+
+const ai = new GoogleGenAI({ apiKey });
 
 
 // We will first create a tool, that we actually help us to run terminal commands
